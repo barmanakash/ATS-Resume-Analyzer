@@ -16,11 +16,11 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
 
     # Database
-    mongodb_uri: str
+    mongodb_uri: str = "mongodb://localhost:27017/ats_resume_analyzer"
     mongodb_db_name: str = "ats_resume_analyzer"
 
     # Auth
-    jwt_secret_key: str
+    jwt_secret_key: str = "development-secret-key-at-least-32-characters!"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 7
@@ -46,6 +46,34 @@ class Settings(BaseSettings):
     smtp_use_ssl: bool = False
     email_from: str = "ATS Resume Analyzer <no-reply@example.com>"
 
+    # AI provider (OpenAI by default; the provider layer is pluggable)
+    ai_provider: str = "openai"
+    openai_api_key: Optional[str] = None
+    openai_model: str = "gpt-4o-mini"
+    openai_base_url: Optional[str] = None  # for OpenAI-compatible gateways
+    ai_timeout_seconds: float = 60.0
+    ai_max_retries: int = 3
+    ai_retry_base_delay_seconds: float = 1.0
+    ai_max_input_chars: int = 30000  # resume / job text sent to the model is truncated to this
+
+    # File storage
+    storage_backend: str = "local"  # local | s3
+    local_storage_dir: str = "storage"
+    s3_bucket: Optional[str] = None
+    s3_region: Optional[str] = None
+    s3_endpoint_url: Optional[str] = None
+    s3_signed_url_expire_seconds: int = 300
+
+    # Uploads, quotas and OCR
+    max_upload_mb: int = 5
+    max_resumes_per_user: int = 50
+    max_jobs_per_user: int = 200
+    ocr_enabled: bool = True
+    ocr_max_pages: int = 5
+    ocr_language: str = "eng"
+    tesseract_cmd: Optional[str] = None  # full path to tesseract.exe if it is not on PATH
+    stale_job_minutes: int = 15  # PENDING/PROCESSING records older than this are marked FAILED on startup
+
     @field_validator("jwt_secret_key")
     @classmethod
     def _validate_secret(cls, value: str) -> str:
@@ -64,7 +92,19 @@ class Settings(BaseSettings):
             raise ValueError("COOKIE_SAMESITE must be lax, strict or none")
         return value
 
-    @field_validator("cookie_domain", "smtp_host", "smtp_username", "smtp_password", mode="before")
+    @field_validator("storage_backend")
+    @classmethod
+    def _validate_storage_backend(cls, value: str) -> str:
+        value = value.lower()
+        if value not in {"local", "s3"}:
+            raise ValueError("STORAGE_BACKEND must be local or s3")
+        return value
+
+    @field_validator(
+        "cookie_domain", "smtp_host", "smtp_username", "smtp_password",
+        "openai_api_key", "openai_base_url", "s3_bucket", "s3_region", "s3_endpoint_url", "tesseract_cmd",
+        mode="before",
+    )
     @classmethod
     def _empty_to_none(cls, value):
         if isinstance(value, str) and not value.strip():
@@ -77,6 +117,8 @@ class Settings(BaseSettings):
             raise ValueError("COOKIE_SAMESITE=none requires COOKIE_SECURE=true")
         if self.app_env == "production" and not self.cookie_secure:
             raise ValueError("COOKIE_SECURE must be true when APP_ENV=production")
+        if self.storage_backend == "s3" and not self.s3_bucket:
+            raise ValueError("S3_BUCKET is required when STORAGE_BACKEND=s3")
         return self
 
     @property
@@ -86,6 +128,15 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.app_env == "production"
+
+    @property
+    def max_upload_bytes(self) -> int:
+        return self.max_upload_mb * 1024 * 1024
+
+    @property
+    def max_request_body_bytes(self) -> int:
+        # Upload limit plus headroom for multipart overhead. Also bounds JSON bodies.
+        return self.max_upload_bytes + 1024 * 1024
 
 
 @lru_cache

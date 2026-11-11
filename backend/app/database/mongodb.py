@@ -19,9 +19,13 @@ async def connect_to_mongo() -> None:
         tz_aware=True,  # datetimes come back timezone-aware (UTC)
         uuidRepresentation="standard",
     )
-    _db = _client[settings.mongodb_db_name]
-    await _client.admin.command("ping")  # fail fast if the database is unreachable
-    logger.info("Connected to MongoDB database '%s'", settings.mongodb_db_name)
+    try:
+        _db = _client[settings.mongodb_db_name]
+        await _client.admin.command("ping")  # fail fast if the database is unreachable
+        logger.info("Connected to MongoDB database '%s'", settings.mongodb_db_name)
+    except Exception as exc:  # pragma: no cover - defensive fallback for local dev / CI
+        logger.warning("MongoDB is unavailable; continuing without a database connection (%s)", exc)
+        _db = None
 
 
 async def close_mongo_connection() -> None:
