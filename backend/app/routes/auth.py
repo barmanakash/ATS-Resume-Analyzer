@@ -1,9 +1,7 @@
-from typing import Optional
-
 from fastapi import APIRouter, Depends, Request, Response
 
-from app.config import settings
-from app.core.exceptions import BadRequestError
+from app.core.cookies import REFRESH_COOKIE_NAME, clear_refresh_cookie, require_trusted_origin, set_refresh_cookie
+from app.core.rate_limit import rate_limit
 from app.database.mongodb import get_db
 from app.dependencies.auth import get_current_user
 from app.schemas.auth import ForgotPasswordRequest, LoginRequest, RegisterRequest, ResetPasswordRequest, VerifyEmailRequest
@@ -14,22 +12,11 @@ from app.services.auth_service import AuthService
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-def _refresh_cookie_kwargs() -> dict:
-    return {
-        "httponly": True,
-        "secure": settings.cookie_secure,
-        "samesite": settings.cookie_samesite,
-        "path": "/",
-        "max_age": settings.refresh_token_expire_days * 86400,
-        "domain": settings.cookie_domain or None,
-    }
-
-
 def get_auth_service() -> AuthService:
     return AuthService(get_db())
 
 
-@router.post("/register")
+@router.post("/register", dependencies=[Depends(rate_limit("register", 10, 3600))])
 async def register(
     payload: RegisterRequest,
     response: Response,
@@ -40,7 +27,7 @@ async def register(
     return ok({"message": "Registration successful. Please verify your email before logging in."})
 
 
-@router.post("/login")
+@router.post("/login", dependencies=[Depends(rate_limit("login", 10, 300))])
 async def login(
     payload: LoginRequest,
     request: Request,
@@ -52,34 +39,32 @@ async def login(
         payload.password,
         user_agent=request.headers.get("user-agent"),
     )
-    response.set_cookie("refresh_token", refresh_token, **_refresh_cookie_kwargs())
+    set_refresh_cookie(response, refresh_token)
     return ok({"accessToken": access_token, "user": to_public_user(user)})
 
 
-@router.post("/refresh")
+@router.post("/refresh", dependencies=[Depends(rate_limit("refresh", 60, 60)), Depends(require_trusted_origin)])
 async def refresh(
     request: Request,
     response: Response,
     auth_service: AuthService = Depends(get_auth_service),
 ):
-    refresh_token = request.cookies.get("refresh_token")
     access_token, new_refresh_token = await auth_service.refresh(
-        refresh_token,
+        request.cookies.get(REFRESH_COOKIE_NAME),
         user_agent=request.headers.get("user-agent"),
     )
-    response.set_cookie("refresh_token", new_refresh_token, **_refresh_cookie_kwargs())
+    set_refresh_cookie(response, new_refresh_token)
     return ok({"accessToken": access_token})
 
 
-@router.post("/logout")
+@router.post("/logout", dependencies=[Depends(require_trusted_origin)])
 async def logout(
     request: Request,
     response: Response,
     auth_service: AuthService = Depends(get_auth_service),
 ):
-    refresh_token = request.cookies.get("refresh_token")
-    await auth_service.logout(refresh_token)
-    response.delete_cookie("refresh_token", path="/", domain=settings.cookie_domain or None)
+    await auth_service.logout(request.cookies.get(REFRESH_COOKIE_NAME))
+    clear_refresh_cookie(response)
     return ok({"message": "Logged out successfully."})
 
 
@@ -88,7 +73,7 @@ async def me(current_user: dict = Depends(get_current_user)):
     return ok(to_public_user(current_user))
 
 
-@router.post("/forgot-password")
+@router.post("/forgot-password", dependencies=[Depends(rate_limit("forgot-password", 5, 3600))])
 async def forgot_password(
     payload: ForgotPasswordRequest,
     auth_service: AuthService = Depends(get_auth_service),
@@ -97,7 +82,7 @@ async def forgot_password(
     return ok({"message": "If an account exists for this email, a password reset link has been sent."})
 
 
-@router.post("/reset-password")
+@router.post("/reset-password", dependencies=[Depends(rate_limit("reset-password", 10, 3600))])
 async def reset_password(
     payload: ResetPasswordRequest,
     auth_service: AuthService = Depends(get_auth_service),
@@ -106,7 +91,7 @@ async def reset_password(
     return ok({"message": "Password reset complete. Please log in with your new password."})
 
 
-@router.post("/verify-email")
+@router.post("/verify-email", dependencies=[Depends(rate_limit("verify-email", 20, 3600))])
 async def verify_email(
     payload: VerifyEmailRequest,
     auth_service: AuthService = Depends(get_auth_service),

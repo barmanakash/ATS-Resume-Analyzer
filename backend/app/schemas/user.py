@@ -3,6 +3,8 @@ from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.schemas.auth import validate_password_strength
+
 
 class UserPublic(BaseModel):
     """What the API returns about a user. Never includes passwordHash."""
@@ -35,6 +37,16 @@ class UpdateProfileRequest(BaseModel):
     @classmethod
     def _strip_name(cls, value):
         return value.strip() if isinstance(value, str) else value
+
+
+class ChangePasswordRequest(BaseModel):
+    currentPassword: str = Field(min_length=1, max_length=128)
+    newPassword: str = Field(min_length=8, max_length=128)
+
+    @field_validator("newPassword")
+    @classmethod
+    def _check_password(cls, value: str) -> str:
+        return validate_password_strength(value)
 
 
 class DeleteAccountRequest(BaseModel):

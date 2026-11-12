@@ -1,17 +1,27 @@
 import apiClient from './apiClient';
 
-/** Fetches the lists the dashboard needs. Totals come from pagination `meta.total`. */
+/**
+ * Fetches everything the dashboard shows in one request from GET /dashboard/summary.
+ * Totals, the average score and usage are computed on the server over all of the user's data,
+ * not just the few recent rows that are displayed.
+ */
 const dashboardService = {
   async getOverview() {
-    const [resumes, analyses] = await Promise.all([
-      apiClient.get('/resumes', { params: { page: 1, pageSize: 5 } }).then((r) => r.data),
-      apiClient.get('/analyses', { params: { page: 1, pageSize: 5 } }).then((r) => r.data),
-    ]);
+    const response = await apiClient.get('/dashboard/summary');
+    const data = response.data?.data || {};
     return {
-      resumes: resumes.data || [],
-      resumesTotal: resumes.meta?.total ?? (resumes.data || []).length,
-      analyses: analyses.data || [],
-      analysesTotal: analyses.meta?.total ?? (analyses.data || []).length,
+      totalResumes: data.totalResumes ?? 0,
+      totalJobDescriptions: data.totalJobDescriptions ?? 0,
+      totalAnalyses: data.totalAnalyses ?? 0,
+      averageCompatibilityScore: typeof data.averageCompatibilityScore === 'number' ? data.averageCompatibilityScore : null,
+      recentResumes: data.recentResumes || [],
+      recentAnalyses: data.recentAnalyses || [],
+      scoreTrend: data.scoreTrend || [],
+      usage: {
+        analysesThisMonth: data.usage?.analysesThisMonth ?? 0,
+        resumes: data.usage?.resumes || { used: data.totalResumes ?? 0, limit: null },
+        jobDescriptions: data.usage?.jobDescriptions || { used: data.totalJobDescriptions ?? 0, limit: null },
+      },
     };
   },
 };

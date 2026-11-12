@@ -82,7 +82,7 @@ async def generate_suggestions(payload: dict, current_user: dict = Depends(get_c
         raise NotFoundError("Selected resume or job description not found.")
 
     svc = ResumeOptimizerService()
-    suggestions = await svc.generate_suggestions(resume.get("parsedText", "") or "", job.get("content", "") or "")
+    suggestions = await svc.generate_suggestions(resume.get("parsedText", "") or "", job.get("description") or job.get("content") or "")
 
     suggestion_record = {
         "userId": current_user["_id"],
@@ -112,8 +112,9 @@ async def create_optimized_resume(payload: dict, current_user: dict = Depends(ge
         raise NotFoundError("Selected resume or job description not found.")
 
     svc = ResumeOptimizerService()
-    suggestions = await svc.generate_suggestions(resume.get("parsedText", "") or "", job.get("content", "") or "")
-    optimized_resume = _build_optimized_resume(resume.get("parsedText", "") or "", suggestions, job.get("content", "") or "")
+    job_text = job.get("description") or job.get("content") or ""
+    suggestions = await svc.generate_suggestions(resume.get("parsedText", "") or "", job_text)
+    optimized_resume = _build_optimized_resume(resume.get("parsedText", "") or "", suggestions, job_text)
 
     version_number = 1 + await get_db()[RESUME_VERSIONS].count_documents({"userId": current_user["_id"], "resumeId": str(resume["_id"])})
     version_doc = {

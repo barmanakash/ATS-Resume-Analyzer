@@ -1,0 +1,68 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "backend-compile",
+			"type": "shell",
+			"command": "Set-Location 'C:\\Users\\ASUS\\Downloads\\codewithakash\\Full_Stack _Project\\ATS Tool\\backend'; & 'C:/Users/ASUS/AppData/Roaming/uv/python/cpython-3.14.6-windows-x86_64-none/python.exe' -m compileall app main.py",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "backend-import-check",
+			"type": "shell",
+			"command": "Set-Location 'C:\\Users\\ASUS\\Downloads\\codewithakash\\Full_Stack _Project\\ATS Tool\\backend'; & 'C:/Users/ASUS/AppData/Roaming/uv/python/cpython-3.14.6-windows-x86_64-none/python.exe' -c \"from app.main import app; print(type(app).__name__)\"",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "backend-uvicorn",
+			"type": "shell",
+			"command": "Set-Location 'C:\\Users\\ASUS\\Downloads\\codewithakash\\Full_Stack _Project\\ATS Tool\\backend'; & 'C:/Users/ASUS/AppData/Roaming/uv/python/cpython-3.14.6-windows-x86_64-none/python.exe' -m uvicorn app.main:app --host 127.0.0.1 --port 8001",
+			"args": [],
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "backend-uvicorn-venv",
+			"type": "shell",
+			"command": "Set-Location 'C:\\Users\\ASUS\\Downloads\\codewithakash\\Full_Stack _Project\\ATS Tool\\backend'; & 'C:\\Users\\ASUS\\Downloads\\codewithakash\\Full_Stack _Project\\ATS Tool\\backend\\venv\\Scripts\\python.exe' -m uvicorn app.main:app --host 127.0.0.1 --port 8001",
+			"args": [],
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "backend-health-check",
+			"type": "shell",
+			"command": "Set-Location 'C:\\Users\\ASUS\\Downloads\\codewithakash\\Full_Stack _Project\\ATS Tool\\backend'; & 'C:\\Users\\ASUS\\Downloads\\codewithakash\\Full_Stack _Project\\ATS Tool\\backend\\venv\\Scripts\\python.exe' -c \"import json, urllib.request; print(json.loads(urllib.request.urlopen('http://127.0.0.1:8001/health').read().decode()))\"",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "Run ATS Tool app",
+			"type": "shell",
+			"command": "cmd /c \"cd /d C:\\Users\\ASUS\\Downloads\\codewithakash\\Full_Stack _Project\\ATS Tool\\backend && .\\venv\\Scripts\\python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 8000\"",
+			"args": [],
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Run ATS Tool backend",
+			"type": "shell",
+			"command": "cd /d \"C:\\Users\\ASUS\\Downloads\\codewithakash\\Full_Stack _Project\\ATS Tool\\backend\" && \".\\venv\\Scripts\\python.exe\" -m uvicorn app.main:app --host 0.0.0.0 --port 8000",
+			"args": [],
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		}
+	]
+}

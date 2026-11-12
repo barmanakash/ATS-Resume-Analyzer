@@ -117,7 +117,7 @@ async def create_analysis(payload: dict, current_user: dict = Depends(get_curren
     if not resume or not job:
         raise NotFoundError("Selected resume or job description not found.")
 
-    result = _build_analysis(resume.get("parsedText", "") or "", job.get("content", "") or "")
+    result = _build_analysis(resume.get("parsedText", "") or "", job.get("description") or job.get("content") or "")
     doc = {
         "userId": current_user["_id"],
         "resumeId": str(resume["_id"]),

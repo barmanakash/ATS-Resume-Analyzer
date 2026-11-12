@@ -175,3 +175,20 @@ class AuthService:
         # A password reset signs the user out everywhere.
         await self.refresh_tokens.revoke_all_for_user(record["userId"])
         logger.info("Password reset user_id=%s", record["userId"])
+
+    # ---------- password change (logged-in user) ----------
+
+    async def change_password(
+        self, user: dict, current_password: str, new_password: str, user_agent: Optional[str] = None
+    ) -> Tuple[str, str]:
+        """Changes the password, signs out every other device and keeps this session alive."""
+        if not await run_in_threadpool(verify_password, current_password, user["passwordHash"]):
+            raise BadRequestError("Your current password is incorrect.", code="INVALID_CURRENT_PASSWORD")
+        if current_password == new_password:
+            raise BadRequestError("Your new password must be different from the current one.", code="SAME_PASSWORD")
+        await self.users.update_password(user["_id"], await run_in_threadpool(hash_password, new_password))
+        await self.refresh_tokens.revoke_all_for_user(user["_id"])
+        access_token = create_access_token(str(user["_id"]))
+        refresh_token = await self._issue_refresh_token(user["_id"], family_id=None, user_agent=user_agent)
+        logger.info("Password changed user_id=%s", user["_id"])
+        return access_token, refresh_token
