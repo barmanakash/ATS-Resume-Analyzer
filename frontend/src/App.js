@@ -10,6 +10,7 @@ import ResetPasswordPage from './pages/auth/ResetPasswordPage';
 import VerifyEmailPage from './pages/auth/VerifyEmailPage';
 import DashboardPage from './pages/DashboardPage';
 import ResumesPage from './pages/resumes/ResumesPage';
+import JobsPage from './pages/jobs/JobsPage';
 import ComingSoonPage from './pages/ComingSoonPage';
 import NotFoundPage from './pages/NotFoundPage';
 import { ROUTES } from './config';
@@ -33,7 +34,7 @@ export default function App() {
         <Route element={<DashboardLayout />}>
           <Route path={ROUTES.dashboard} element={<DashboardPage />} />
           <Route path={ROUTES.resumes} element={<ResumesPage />} />
-          <Route path={ROUTES.jobs} element={<ComingSoonPage title="Job descriptions" phase="Phase 4 (Job Description Management)" />} />
+          <Route path={ROUTES.jobs} element={<JobsPage />} />
           <Route path={ROUTES.newAnalysis} element={<ComingSoonPage title="New analysis" phase="Phase 5 (ATS Analysis)" />} />
           <Route path={ROUTES.history} element={<ComingSoonPage title="Analysis history" phase="Phase 8 (Dashboard and History)" />} />
           <Route path={ROUTES.settings} element={<ComingSoonPage title="Settings" phase="Phase 8 (User Settings)" />} />
