@@ -14,4 +14,9 @@ class JobDescriptionRepository(UserOwnedRepository):
 
 class AnalysisRepository(UserOwnedRepository):
     collection_name = RESUME_ANALYSES
-    list_projection = {"analysisDetails": 0}
+    # The list shows a summary only; the full report is loaded when one analysis is opened.
+    list_projection = {
+        "resumeId": 1, "jobDescriptionId": 1, "resumeName": 1, "jobTitle": 1, "companyName": 1, "status": 1,
+        "overallScore": 1, "recommendation": 1, "mandatoryGapCount": 1, "engineVersion": 1,
+        "createdAt": 1, "updatedAt": 1,
+    }

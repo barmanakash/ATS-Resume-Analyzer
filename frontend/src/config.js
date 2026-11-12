@@ -24,6 +24,8 @@ export const ROUTES = {
   resumes: '/app/resumes',
   jobs: '/app/jobs',
   newAnalysis: '/app/analyses/new',
+  analysisDetailPattern: '/app/analyses/:analysisId',
+  analysisDetail: (id) => `/app/analyses/${id}`,
   history: '/app/history',
   settings: '/app/settings',
 };

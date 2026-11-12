@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import {
-  Alert, Box, Button, Card, CardContent, Chip, Grid, LinearProgress, List, ListItem, ListItemText, Skeleton, Stack, Typography,
+  Alert, Box, Button, Card, CardContent, Chip, Grid, LinearProgress, Link, List, ListItem, ListItemText, Skeleton, Stack, Typography,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
@@ -283,7 +283,11 @@ export default function DashboardPage() {
                 items={data?.recentAnalyses || []}
                 loading={loading && !data}
                 emptyText="No analyses yet. Start one to see how your resume matches a job."
-                renderPrimary={(a) => a.jobTitle || 'Job description removed'}
+                renderPrimary={(a) => (
+                  <Link component={RouterLink} to={ROUTES.analysisDetail(a.id)} underline="hover" color="inherit">
+                    {a.jobTitle || 'Job description removed'}
+                  </Link>
+                )}
                 renderSecondary={(a) => [a.companyName, a.resumeName || 'Resume removed', formatDate(a.createdAt)].filter(Boolean).join(' · ')}
                 trailing={(a) => (typeof a.overallScore === 'number'
                   ? <Chip size="small" color={scoreColor(a.overallScore)} label={`${Math.round(a.overallScore)}%`} />

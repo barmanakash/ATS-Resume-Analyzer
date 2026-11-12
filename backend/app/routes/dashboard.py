@@ -57,10 +57,11 @@ async def _present_recent_analyses(db, user_id, docs: List[dict]) -> List[Dict[s
             "jobDescriptionId": str(doc.get("jobDescriptionId") or ""),
             "status": str(doc.get("status") or "").upper() or None,
             "overallScore": score if isinstance(score, (int, float)) and not isinstance(score, bool) else None,
-            # None (not a placeholder string) when the record was deleted; the UI decides how to word it.
-            "resumeName": resume.get("displayName") or resume.get("name") or resume.get("originalFileName") or resume.get("fileName"),
-            "jobTitle": job.get("jobTitle") or job.get("title"),
-            "companyName": job.get("companyName") or job.get("company") or "",
+            # Live names win; the copy saved with the analysis keeps rows readable after a delete.
+            # None only for older analyses that have no saved copy.
+            "resumeName": resume.get("displayName") or resume.get("name") or resume.get("originalFileName") or resume.get("fileName") or doc.get("resumeName") or None,
+            "jobTitle": job.get("jobTitle") or job.get("title") or doc.get("jobTitle") or None,
+            "companyName": job.get("companyName") or job.get("company") or doc.get("companyName") or "",
             "createdAt": doc.get("createdAt"),
         })
     return items
