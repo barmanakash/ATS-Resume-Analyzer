@@ -19,6 +19,7 @@ from app.routes.jobs import router as jobs_router
 from app.routes.optimizer import router as optimizer_router
 from app.routes.resumes import router as resumes_router
 from app.routes.users import router as users_router
+from app.services.analysis_service import fail_stale_analyses
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,10 @@ async def lifespan(_: FastAPI):
     # Indexes (unique email, TTL cleanup of expired tokens, query indexes). Failing loudly is intentional:
     # running without the unique email index would silently allow duplicate accounts.
     await ensure_indexes(get_db())
+    # An analysis left PENDING/PROCESSING by a restart would otherwise show as "running" forever.
+    stale = await fail_stale_analyses(get_db())
+    if stale:
+        logger.warning("Marked %s unfinished analyses as FAILED", stale)
     yield
     await close_mongo_connection()
 

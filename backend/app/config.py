@@ -56,6 +56,17 @@ class Settings(BaseSettings):
     ai_retry_base_delay_seconds: float = 1.0
     ai_max_input_chars: int = 30000  # resume / job text sent to the model is truncated to this
 
+    # ATS scoring. Weights are relative and are normalised to add up to 100.
+    ats_weight_technical_skills: float = 30
+    ats_weight_experience: float = 20
+    ats_weight_responsibilities: float = 15
+    ats_weight_keywords: float = 15
+    ats_weight_education: float = 10
+    ats_weight_structure: float = 10
+    ats_ready_threshold: int = 75  # score at or above this -> READY_TO_APPLY
+    ats_improve_threshold: int = 50  # score at or above this -> IMPROVE_BEFORE_APPLYING, below -> LOW_COMPATIBILITY
+    ats_block_ready_on_mandatory_gaps: bool = True  # a missing mandatory requirement prevents READY_TO_APPLY
+
     # File storage
     storage_backend: str = "local"  # local | s3
     local_storage_dir: str = "storage"
@@ -119,6 +130,18 @@ class Settings(BaseSettings):
             raise ValueError("COOKIE_SECURE must be true when APP_ENV=production")
         if self.storage_backend == "s3" and not self.s3_bucket:
             raise ValueError("S3_BUCKET is required when STORAGE_BACKEND=s3")
+        return self
+
+    @model_validator(mode="after")
+    def _validate_ats_scoring(self):
+        weights = [
+            self.ats_weight_technical_skills, self.ats_weight_experience, self.ats_weight_responsibilities,
+            self.ats_weight_keywords, self.ats_weight_education, self.ats_weight_structure,
+        ]
+        if any(w < 0 for w in weights) or sum(weights) <= 0:
+            raise ValueError("ATS_WEIGHT_* values must not be negative and at least one must be above zero")
+        if not (0 <= self.ats_improve_threshold < self.ats_ready_threshold <= 100):
+            raise ValueError("ATS thresholds must satisfy 0 <= ATS_IMPROVE_THRESHOLD < ATS_READY_THRESHOLD <= 100")
         return self
 
     @property

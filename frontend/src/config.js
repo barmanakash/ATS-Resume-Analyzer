@@ -27,3 +27,6 @@ export const ROUTES = {
   history: '/app/history',
   settings: '/app/settings',
 };
+
+/** Path of one analysis report. */
+export const analysisPath = (id) => `/app/analyses/${id}`;
