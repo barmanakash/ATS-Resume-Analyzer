@@ -75,6 +75,18 @@ class TooManyRequestsError(AppError):
         super().__init__(message, headers={"Retry-After": str(retry_after)}, **kwargs)
 
 
+class BadGatewayError(AppError):
+    status_code = 502
+    code = "BAD_GATEWAY"
+    message = "An upstream service failed. Please try again."
+
+
+class ServiceUnavailableError(AppError):
+    status_code = 503
+    code = "SERVICE_UNAVAILABLE"
+    message = "This feature is not available right now."
+
+
 def error_body(code: str, message: str, details: Optional[list] = None) -> Dict[str, Any]:
     body: Dict[str, Any] = {"success": False, "error": {"code": code, "message": message}}
     if details:

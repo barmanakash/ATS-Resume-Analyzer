@@ -264,3 +264,8 @@ def build_profile(text: str, contact: Optional[dict] = None, today: Optional[dat
 
 def education_label(level: Optional[int]) -> Optional[str]:
     return EDUCATION_LABELS.get(level) if level else None
+
+
+# Public names for other modules (the resume optimizer splits a resume into sections with these).
+detect_sections = _detect_sections
+header_kind = _header_kind
