@@ -1,8 +1,10 @@
 import logging
+from datetime import datetime, timezone
 
 from starlette.concurrency import run_in_threadpool
 
 from app.core.exceptions import BadRequestError, NotFoundError
+from app.database.collections import RESUME_ANALYSES
 from app.repositories.document_repositories import AnalysisRepository, JobDescriptionRepository, ResumeRepository
 from app.schemas.analysis import AnalysisCreatePayload, present_analysis, present_analysis_summary
 from app.schemas.common import Pagination
@@ -14,6 +16,23 @@ logger = logging.getLogger(__name__)
 # Bounds the work done per request. Real resumes and postings are far smaller.
 MAX_RESUME_CHARS = 100_000
 MAX_JOB_CHARS = 30_000
+
+_UNFINISHED_STATUSES = [f(s) for s in ("pending", "processing") for f in (str.lower, str.upper, str.capitalize)]
+
+
+async def fail_stale_analyses(db) -> int:
+    """Marks analyses left PENDING or PROCESSING (for example by a server restart) as FAILED, so they never
+    appear to be running forever. Called once at startup. Analyses created by this version finish within the
+    request, so this only affects records from older versions or interrupted runs. Returns how many changed."""
+    result = await db[RESUME_ANALYSES].update_many(
+        {"status": {"$in": _UNFINISHED_STATUSES}},
+        {"$set": {
+            "status": "FAILED",
+            "error": "This analysis was interrupted before it finished. Run it again.",
+            "updatedAt": datetime.now(timezone.utc),
+        }},
+    )
+    return result.modified_count
 
 
 class AnalysisService:

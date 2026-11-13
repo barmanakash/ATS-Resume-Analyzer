@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
 import {
-  Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogContentText,
-  DialogTitle, Divider, LinearProgress, Skeleton, Stack, ToggleButton, ToggleButtonGroup, Typography,
+  Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, Card, CardContent, Chip, CircularProgress, Dialog,
+  DialogActions, DialogContent, DialogContentText, DialogTitle, Divider, LinearProgress, Skeleton, Stack, ToggleButton,
+  ToggleButtonGroup, Typography,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { PolarAngleAxis, PolarGrid, PolarRadiusAxis, Radar, RadarChart, ResponsiveContainer } from 'recharts';
@@ -12,10 +13,12 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import analysisService from '../../services/analysisService';
 import { getErrorMessage } from '../../services/apiClient';
 import { useNotification } from '../../context/NotificationContext';
 import { ROUTES } from '../../config';
+import { ExperienceEducation, KeywordRelevance, SkillsOverview } from './ReportSections';
 
 const RECOMMENDATIONS = {
   READY_TO_APPLY: { label: 'Ready to apply', color: 'success', text: 'Your resume matches this job well.' },
@@ -212,15 +215,19 @@ function Requirements({ items, categories }) {
           const rows = visible.filter((i) => i.category === category.key);
           if (!rows.length) return null;
           return (
-            <Box key={category.key} sx={{ mt: 2 }}>
-              <Typography variant="overline" color="text.secondary">{category.label}</Typography>
-              <Divider />
-              {rows.map((item, index) => (
-                <Box key={item.id} sx={index ? { borderTop: 1, borderColor: 'divider' } : undefined}>
-                  <RequirementRow item={item} />
-                </Box>
-              ))}
-            </Box>
+            <Accordion key={category.key} defaultExpanded disableGutters variant="outlined" sx={{ mt: 1.5, '&:before': { display: 'none' } }}>
+              <AccordionSummary expandIcon={<ExpandMoreIcon />} aria-label={`${category.label}, ${rows.length} requirements`}>
+                <Typography sx={{ fontWeight: 600 }}>{category.label}</Typography>
+                <Typography color="text.secondary" sx={{ ml: 1 }}>({rows.length})</Typography>
+              </AccordionSummary>
+              <AccordionDetails sx={{ pt: 0 }}>
+                {rows.map((item, index) => (
+                  <Box key={item.id} sx={index ? { borderTop: 1, borderColor: 'divider' } : undefined}>
+                    <RequirementRow item={item} />
+                  </Box>
+                ))}
+              </AccordionDetails>
+            </Accordion>
           );
         })}
       </CardContent>
@@ -391,7 +398,10 @@ export default function AnalysisReportPage() {
             {(report.warnings || []).map((warning) => <Alert key={warning} severity="warning">{warning}</Alert>)}
             <GapsAlert gaps={report.mandatoryGaps || []} />
             <CategoryBreakdown categories={report.categoryScores} />
+            <SkillsOverview report={report} />
             <Requirements items={report.requirements || []} categories={report.categoryScores} />
+            <ExperienceEducation report={report} />
+            <KeywordRelevance report={report} />
             <Recommendations items={report.improvementRecommendations || []} />
             <StructureCard checks={report.structureChecks || []} summary={report.resumeSummary} />
             {report.semanticAnalysis && !report.semanticAnalysis.enabled && (

@@ -1,6 +1,7 @@
 from bson import ObjectId
 
 from app.database.collections import RESUMES
+from app.services.analysis_service import fail_stale_analyses
 from tests.helpers import make_pdf
 
 URL = "/api/v1/analyses"
@@ -144,6 +145,17 @@ async def test_a_resume_without_readable_text_is_rejected_with_a_clear_error(cli
     response = await create_analysis(client, auth, resume, job)
     assert response.status_code == 400
     assert response.json()["error"]["code"] == "RESUME_UNREADABLE"
+
+
+async def test_unfinished_analyses_are_failed_on_startup_and_finished_ones_are_left_alone(db):
+    owner = ObjectId()
+    for status in ("pending", "PROCESSING", "Processing", "completed", "FAILED"):
+        await db["resume_analyses"].insert_one({"userId": owner, "status": status})
+
+    assert await fail_stale_analyses(db) == 3
+    statuses = sorted([doc["status"] async for doc in db["resume_analyses"].find({"userId": owner})])
+    assert statuses == ["FAILED", "FAILED", "FAILED", "FAILED", "completed"]
+    assert await fail_stale_analyses(db) == 0  # nothing left to change
 
 
 async def test_the_report_survives_deleting_the_job_and_the_resume(client, auth):

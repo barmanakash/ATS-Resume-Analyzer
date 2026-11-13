@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Alert, Box, Button, Card, CardContent, LinearProgress, Skeleton, Stack, TextField, ToggleButton, ToggleButtonGroup, Typography,
+  Alert, Box, Button, Card, CardContent, LinearProgress, Skeleton, Stack, Step, StepLabel, Stepper, TextField, ToggleButton,
+  ToggleButtonGroup, Typography,
 } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import WorkOutlineIcon from '@mui/icons-material/WorkOutline';
@@ -13,6 +15,9 @@ import { getErrorMessage } from '../../services/apiClient';
 import { JOB_DESCRIPTION_MAX_CHARS, ROUTES } from '../../config';
 import { jobSchema } from '../jobs/jobSchema';
 import { formatBytes } from '../../utils/resumeFile';
+import UploadResumeDialog from './UploadResumeDialog';
+
+const STEPS = ['Choose resume', 'Choose job description', 'Confirm', 'Analyze'];
 
 const LIST_SIZE = 100; // the largest page the API allows
 
@@ -54,6 +59,8 @@ export default function NewAnalysisPage() {
   const [stage, setStage] = useState(''); // '', 'saving', 'analyzing'
   const [error, setError] = useState('');
   const [createdJobId, setCreatedJobId] = useState(''); // reused if the analysis fails after the job was saved
+  const [confirming, setConfirming] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -90,13 +97,24 @@ export default function NewAnalysisPage() {
   const resume = useMemo(() => resumes.find((r) => r.id === resumeId), [resumes, resumeId]);
   const job = useMemo(() => jobs.find((j) => j.id === jobId), [jobs, jobId]);
   const busy = Boolean(stage);
+  const locked = busy || confirming; // the selection cannot change while it is being confirmed or run
+  const activeStep = busy ? 3 : confirming ? 2 : resumeId ? 1 : 0;
+  const confirmJobTitle = jobMode === 'saved' ? job?.jobTitle : newJob.jobTitle.trim();
 
   const setField = (field) => (event) => {
     setNewJob({ ...newJob, [field]: event.target.value });
     if (fieldErrors[field]) setFieldErrors({ ...fieldErrors, [field]: undefined });
   };
 
-  const start = async () => {
+  const handleUploaded = (uploaded) => {
+    setUploadOpen(false);
+    setResumes((prev) => [uploaded, ...prev]);
+    setResumeTotal((count) => count + 1);
+    setResumeId(uploaded.id);
+    setError('');
+  };
+
+  const start = async (confirmed = false) => {
     setError('');
     if (!resumeId) { setError('Choose a resume to analyze.'); return; }
 
@@ -115,6 +133,11 @@ export default function NewAnalysisPage() {
       toSave = parsed.data;
     } else {
       targetJobId = createdJobId;
+    }
+
+    if (!confirmed) {
+      setConfirming(true); // step 3: show what will be analyzed and ask the user to confirm
+      return;
     }
 
     try {
@@ -149,6 +172,12 @@ export default function NewAnalysisPage() {
         Compare one of your resumes with a job description to see how well they match.
       </Typography>
 
+      {!loadError && resumes.length > 0 && (
+        <Stepper activeStep={activeStep} alternativeLabel sx={{ mb: 4 }}>
+          {STEPS.map((label) => <Step key={label}><StepLabel>{label}</StepLabel></Step>)}
+        </Stepper>
+      )}
+
       {loadError && (
         <Alert severity="error" sx={{ mb: 3 }} action={<Button color="inherit" size="small" onClick={load}>Retry</Button>}>{loadError}</Alert>
       )}
@@ -159,7 +188,7 @@ export default function NewAnalysisPage() {
             <DescriptionOutlinedIcon color="disabled" sx={{ fontSize: 48 }} />
             <Typography variant="h6">Upload a resume first</Typography>
             <Typography color="text.secondary" sx={{ mb: 2 }}>You need at least one resume to run an analysis.</Typography>
-            <Button component={RouterLink} to={ROUTES.resumes} variant="contained">Upload a resume</Button>
+            <Button variant="contained" onClick={() => setUploadOpen(true)}>Upload a resume</Button>
           </CardContent>
         </Card>
       ) : !loadError && (
@@ -172,7 +201,7 @@ export default function NewAnalysisPage() {
               label="Resume"
               value={resumeId}
               onChange={(e) => { setResumeId(e.target.value); setError(''); }}
-              disabled={busy}
+              disabled={locked}
               SelectProps={{ native: true }}
               InputLabelProps={{ shrink: true }}
               helperText={resumeTotal > resumes.length ? `Showing your ${resumes.length} most recent resumes.` : undefined}
@@ -180,6 +209,9 @@ export default function NewAnalysisPage() {
               <option value="">Select a resume</option>
               {resumes.map((r) => <option key={r.id} value={r.id}>{r.displayName}</option>)}
             </TextField>
+            <Button startIcon={<AddIcon />} onClick={() => setUploadOpen(true)} disabled={locked} sx={{ mt: 1 }}>
+              Upload a new resume
+            </Button>
             {resume && (
               <Box sx={{ mt: 2 }}>
                 <SelectedCard
@@ -198,7 +230,7 @@ export default function NewAnalysisPage() {
               size="small"
               value={jobMode}
               onChange={(_, value) => { if (value) { setJobMode(value); setError(''); } }}
-              disabled={busy}
+              disabled={locked}
               aria-label="Job description source"
               sx={{ mb: 2 }}
             >
@@ -214,7 +246,7 @@ export default function NewAnalysisPage() {
                   label="Saved job description"
                   value={jobId}
                   onChange={(e) => { setJobId(e.target.value); setError(''); }}
-                  disabled={busy}
+                  disabled={locked}
                   SelectProps={{ native: true }}
                   InputLabelProps={{ shrink: true }}
                   helperText={jobTotal > jobs.length ? `Showing your ${jobs.length} most recent job descriptions.` : undefined}
@@ -236,17 +268,17 @@ export default function NewAnalysisPage() {
               <Stack spacing={2}>
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                   <TextField
-                    label="Job title" required fullWidth value={newJob.jobTitle} onChange={setField('jobTitle')} disabled={busy || Boolean(createdJobId)}
+                    label="Job title" required fullWidth value={newJob.jobTitle} onChange={setField('jobTitle')} disabled={locked || Boolean(createdJobId)}
                     error={Boolean(fieldErrors.jobTitle)} helperText={fieldErrors.jobTitle} inputProps={{ maxLength: 200 }}
                   />
                   <TextField
-                    label="Company name" fullWidth value={newJob.companyName} onChange={setField('companyName')} disabled={busy || Boolean(createdJobId)}
+                    label="Company name" fullWidth value={newJob.companyName} onChange={setField('companyName')} disabled={locked || Boolean(createdJobId)}
                     error={Boolean(fieldErrors.companyName)} helperText={fieldErrors.companyName || 'Optional'} inputProps={{ maxLength: 200 }}
                   />
                 </Stack>
                 <TextField
                   label="Job description" required multiline minRows={8} maxRows={16} fullWidth value={newJob.description}
-                  onChange={setField('description')} disabled={busy || Boolean(createdJobId)}
+                  onChange={setField('description')} disabled={locked || Boolean(createdJobId)}
                   error={Boolean(fieldErrors.description)}
                   helperText={fieldErrors.description || `${newJob.description.length.toLocaleString('en-US')} / ${JOB_DESCRIPTION_MAX_CHARS.toLocaleString('en-US')} characters. It is saved to your job descriptions.`}
                 />
@@ -266,13 +298,36 @@ export default function NewAnalysisPage() {
             </Box>
           )}
 
-          <Box>
-            <Button variant="contained" size="large" startIcon={<PlayArrowIcon />} onClick={start} disabled={busy}>
-              Start analysis
-            </Button>
-          </Box>
+          {confirming ? (
+            <Card variant="outlined" component="section" aria-labelledby="step-confirm">
+              <CardContent>
+                <Typography id="step-confirm" variant="h6" component="h2" sx={{ mb: 1.5 }}>3. Confirm</Typography>
+                <Typography sx={{ mb: 1 }}>
+                  Analyze <strong>{resume?.displayName}</strong> against <strong>{confirmJobTitle || 'the new job description'}</strong>?
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  The score is an estimate of how well your resume matches this job description. It does not predict whether
+                  any employer&apos;s system will select you.
+                </Typography>
+                <Stack direction="row" spacing={1}>
+                  <Button variant="contained" size="large" startIcon={<PlayArrowIcon />} onClick={() => start(true)} disabled={busy}>
+                    Run analysis
+                  </Button>
+                  <Button onClick={() => { setConfirming(false); setError(''); }} disabled={busy}>Back</Button>
+                </Stack>
+              </CardContent>
+            </Card>
+          ) : (
+            <Box>
+              <Button variant="contained" size="large" onClick={() => start(false)} disabled={busy}>
+                Continue
+              </Button>
+            </Box>
+          )}
         </Stack>
       )}
+
+      {uploadOpen && <UploadResumeDialog onClose={() => setUploadOpen(false)} onUploaded={handleUploaded} />}
     </Box>
   );
 }
