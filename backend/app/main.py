@@ -16,7 +16,7 @@ from app.routes.auth import router as auth_router
 from app.routes.dashboard import router as dashboard_router
 from app.routes.exports import router as exports_router
 from app.routes.jobs import router as jobs_router
-from app.routes.optimizer import router as optimizer_router
+from app.routes.optimizer import suggestions_router, versions_router
 from app.routes.resumes import router as resumes_router
 from app.routes.users import router as users_router
 from app.services.analysis_service import fail_stale_analyses
@@ -75,7 +75,8 @@ def create_app() -> FastAPI:
         jobs_router,
         analyses_router,
         dashboard_router,
-        optimizer_router,
+        versions_router,
+        suggestions_router,
         exports_router,
     ):
         app.include_router(router, prefix=settings.api_prefix)

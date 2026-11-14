@@ -64,7 +64,7 @@ def present_suggestion(doc: Dict[str, Any]) -> Dict[str, Any]:
 def present_version(doc: Dict[str, Any], suggestions: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
     out = {key: doc.get(key) for key in (
         "id", "resumeId", "analysisId", "jobDescriptionId", "versionNumber", "name", "kind", "mode", "resumeName",
-        "jobTitle", "companyName", "content", "warnings", "createdAt", "updatedAt",
+        "jobTitle", "companyName", "content", "baseline", "warnings", "createdAt", "updatedAt",
     )}
     out["history"] = [{"id": h["id"], "savedAt": h["savedAt"], "label": h["label"]} for h in doc.get("history", [])]
     if suggestions is not None:

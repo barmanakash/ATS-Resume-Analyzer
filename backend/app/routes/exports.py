@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import html
+
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import HTMLResponse, PlainTextResponse
 
@@ -7,6 +9,7 @@ from app.core.exceptions import BadRequestError, NotFoundError
 from app.database.collections import RESUME_VERSIONS, RESUMES
 from app.database.mongodb import get_db
 from app.dependencies.auth import get_current_user
+from app.optimizer.document import document_text
 from app.schemas.common import ok
 from app.utils.mongo import serialize, to_object_id
 
@@ -28,13 +31,16 @@ async def export_resume(
     if version_id:
         version = await get_db()[RESUME_VERSIONS].find_one({"_id": to_object_id(version_id), "userId": current_user["_id"]})
         if version:
-            content = version.get("content") or content
+            stored = version.get("content")
+            # Optimized versions hold a structured document; older ones held plain text.
+            content = document_text(stored) if isinstance(stored, dict) else (stored or content)
 
     file_format = (format or "txt").lower()
     if file_format == "txt":
         return PlainTextResponse(content or "No resume text available.")
     if file_format == "html":
-        html_content = (content or "No resume text available.").replace("\n", "<br/>")
+        # Resume text is untrusted: escape it, or a resume containing <script> would run in the browser.
+        html_content = html.escape(content or "No resume text available.")
         return HTMLResponse(f"<html><body><pre>{html_content}</pre></body></html>")
     if file_format == "json":
         return ok({"resumeId": str(resume["_id"]), "content": content})

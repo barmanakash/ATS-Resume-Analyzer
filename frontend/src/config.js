@@ -26,6 +26,8 @@ export const ROUTES = {
   newAnalysis: '/app/analyses/new',
   analysisDetailPattern: '/app/analyses/:analysisId',
   analysisDetail: (id) => `/app/analyses/${id}`,
+  versionDetailPattern: '/app/versions/:versionId',
+  versionDetail: (id) => `/app/versions/${id}`,
   history: '/app/history',
   settings: '/app/settings',
 };

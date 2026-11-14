@@ -6,9 +6,10 @@ Nothing adds a skill, employer, title, number or certification the candidate did
 from __future__ import annotations
 
 import re
+from copy import deepcopy
 from typing import Any, Dict, List, Optional
 
-from app.optimizer.document import iter_items
+from app.optimizer.document import iter_items, set_item_text
 from app.optimizer.guards import unsupported_additions
 from app.scoring.skills import SKILLS_BY_NAME, skills_in
 from app.scoring.text_utils import normalize_text
@@ -188,14 +189,27 @@ def _gap_notes(analysis: dict) -> List[Dict[str, Any]]:
 
 
 def generate(document: dict, analysis: dict, resume_text: str) -> List[Dict[str, Any]]:
-    """All rule-based suggestions for a document. Every text change is re-checked by the safety guards."""
+    """All rule-based suggestions for a document. Every text change is re-checked by the safety guards.
+
+    Each line gets at most one suggestion: rules run in sequence on a working copy, and when several apply to the
+    same line their effects are combined into one proposal. (Two separate suggestions for one line could not both
+    be accepted, because accepting the first changes the text the second was written against.)"""
     jd_skills = analysis.get("extractedRequirements", {}).get("skills", [])
     jd_rank = {s["name"]: RANK.get(s.get("importance"), 3) for s in jd_skills}
     jd_names = set(jd_rank)
 
-    changes = _terminology(document, jd_names) + _skills_order(document, jd_rank) + _wording(document)
-    safe = [
-        s for s in changes
-        if not unsupported_additions(s["original"], s["proposed"], resume_text)
-    ]
+    by_line: Dict[str, Dict[str, Any]] = {}
+    working = deepcopy(document)
+    for s in _terminology(document, jd_names):
+        by_line[s["itemId"]] = s
+        set_item_text(working, s["itemId"], s["proposed"])
+    for s in _skills_order(working, jd_rank) + _wording(working):
+        existing = by_line.get(s["itemId"])
+        if existing:
+            existing["proposed"] = s["proposed"]
+            existing["reason"] = f"{existing['reason']} {s['reason']}"
+        else:
+            by_line[s["itemId"]] = s
+
+    safe = [s for s in by_line.values() if not unsupported_additions(s["original"], s["proposed"], resume_text)]
     return safe + _gap_notes(analysis)

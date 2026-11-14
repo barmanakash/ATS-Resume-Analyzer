@@ -13,7 +13,8 @@ import ResumesPage from './pages/resumes/ResumesPage';
 import JobsPage from './pages/jobs/JobsPage';
 import NewAnalysisPage from './pages/analysis/NewAnalysisPage';
 import AnalysisReportPage from './pages/analysis/AnalysisReportPage';
-import ComingSoonPage from './pages/ComingSoonPage';
+import AnalysisHistoryPage from './pages/history/AnalysisHistoryPage';
+import SettingsPage from './pages/settings/SettingsPage';
 import NotFoundPage from './pages/NotFoundPage';
 import { ROUTES } from './config';
 
@@ -39,8 +40,8 @@ export default function App() {
           <Route path={ROUTES.jobs} element={<JobsPage />} />
           <Route path={ROUTES.newAnalysis} element={<NewAnalysisPage />} />
           <Route path={ROUTES.analysisDetailPattern} element={<AnalysisReportPage />} />
-          <Route path={ROUTES.history} element={<ComingSoonPage title="Analysis history" phase="Phase 8 (Dashboard and History)" />} />
-          <Route path={ROUTES.settings} element={<ComingSoonPage title="Settings" phase="Phase 8 (User Settings)" />} />
+          <Route path={ROUTES.history} element={<AnalysisHistoryPage />} />
+          <Route path={ROUTES.settings} element={<SettingsPage />} />
           <Route path="/app" element={<Navigate to={ROUTES.dashboard} replace />} />
         </Route>
       </Route>
