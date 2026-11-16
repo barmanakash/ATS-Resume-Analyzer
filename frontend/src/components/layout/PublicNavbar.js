@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import {
   AppBar, Box, Button, Container, Drawer, IconButton, List, ListItemButton, ListItemText, Toolbar, useMediaQuery,
@@ -17,11 +17,42 @@ const NAV_ITEMS = [
   { label: 'FAQ', href: '#faq' },
 ];
 
+const NAV_LINK_SX = {
+  position: 'relative',
+  color: 'text.secondary',
+  transition: 'color 0.2s ease',
+  '&:hover': { color: 'primary.main', bgcolor: 'transparent' },
+  '&::after': {
+    content: '""',
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    bottom: 4,
+    height: 2,
+    borderRadius: 1,
+    bgcolor: 'primary.main',
+    transform: 'scaleX(0)',
+    transformOrigin: 'left',
+    transition: 'transform 0.25s ease',
+  },
+  '&:hover::after, &:focus-visible::after': { transform: 'scaleX(1)' },
+  '@media (prefers-reduced-motion: reduce)': { '&::after': { transition: 'none' } },
+};
+
 export default function PublicNavbar() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [open, setOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const { isAuthenticated } = useAuth();
+
+  // A soft shadow appears once the page has moved under the bar.
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   const actions = isAuthenticated ? (
     <Button component={RouterLink} to={ROUTES.dashboard} variant="contained">Go to dashboard</Button>
@@ -33,7 +64,19 @@ export default function PublicNavbar() {
   );
 
   return (
-    <AppBar position="sticky" color="inherit" elevation={0} sx={{ borderBottom: 1, borderColor: 'divider', bgcolor: 'background.paper' }}>
+    <AppBar
+      position="sticky"
+      color="inherit"
+      elevation={0}
+      sx={{
+        borderBottom: 1,
+        borderColor: 'divider',
+        bgcolor: scrolled ? 'rgba(255, 255, 255, 0.88)' : 'background.paper',
+        backdropFilter: scrolled ? 'blur(10px)' : 'none',
+        boxShadow: scrolled ? '0 4px 18px rgba(17, 24, 39, 0.08)' : 'none',
+        transition: 'box-shadow 0.25s ease, background-color 0.25s ease',
+      }}
+    >
       <Container maxWidth="lg">
         <Toolbar disableGutters sx={{ gap: 2 }}>
           <Logo />
@@ -43,7 +86,7 @@ export default function PublicNavbar() {
           ) : (
             <>
               {NAV_ITEMS.map((item) => (
-                <Button key={item.href} href={item.href} color="inherit" sx={{ color: 'text.secondary' }}>{item.label}</Button>
+                <Button key={item.href} href={item.href} color="inherit" sx={NAV_LINK_SX}>{item.label}</Button>
               ))}
               <Box sx={{ display: 'flex', gap: 1, ml: 1 }}>{actions}</Box>
             </>
