@@ -274,8 +274,10 @@ function Steps() {
   const [ref, inView] = useInView({ threshold: 0.3 });
   return (
     <Box ref={ref} sx={{ position: 'relative' }}>
-      {/* Line that draws itself between the numbered steps (wide screens only) */}
-      <Box aria-hidden="true" sx={{ display: { xs: 'none', md: 'block' }, position: 'absolute', top: 23, left: '12.5%', right: '12.5%', height: 2, bgcolor: 'divider' }}>
+      {/* Line that draws itself between the numbered steps (wide screens only).
+          top: 47 puts it through the middle of the 48px circles: the grid's spacing (24px) pushes the circles
+          down inside this wrapper, so half a circle (24px) is added to that offset, less half the line's height. */}
+      <Box aria-hidden="true" sx={{ display: { xs: 'none', md: 'block' }, position: 'absolute', top: 47, left: '12.5%', right: '12.5%', height: 2, bgcolor: 'divider' }}>
         <Box
           sx={{
             height: '100%',
