@@ -19,6 +19,7 @@ from app.routes.jobs import router as jobs_router
 from app.routes.optimizer import suggestions_router, versions_router
 from app.routes.resumes import router as resumes_router
 from app.routes.users import router as users_router
+from app.routes.version_exports import router as version_exports_router
 from app.services.analysis_service import fail_stale_analyses
 
 logger = logging.getLogger(__name__)
@@ -60,6 +61,9 @@ def create_app() -> FastAPI:
         allow_credentials=True,
         allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["Authorization", "Content-Type"],
+        # Without this a browser hides these headers from the frontend, so downloads would lose their file name
+        # and the character-replacement warning on PDFs.
+        expose_headers=["Content-Disposition", "X-Export-Warnings"],
     )
 
     register_exception_handlers(app)
@@ -77,6 +81,7 @@ def create_app() -> FastAPI:
         dashboard_router,
         versions_router,
         suggestions_router,
+        version_exports_router,
         exports_router,
     ):
         app.include_router(router, prefix=settings.api_prefix)

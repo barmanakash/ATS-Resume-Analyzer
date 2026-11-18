@@ -6,7 +6,9 @@ import {
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import AutoFixHighOutlinedIcon from '@mui/icons-material/AutoFixHighOutlined';
 import analysisService from '../../services/analysisService';
+import optimizerService from '../../services/optimizerService';
 import { getErrorMessage } from '../../services/apiClient';
 import { useNotification } from '../../context/NotificationContext';
 import { ROUTES } from '../../config';
@@ -36,6 +38,21 @@ export default function AnalysisReportPage() {
   const [error, setError] = useState('');
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [optimizing, setOptimizing] = useState(false);
+  const [optimizeError, setOptimizeError] = useState('');
+
+  // Creates an optimized COPY of the resume. The original resume is never changed.
+  const handleOptimize = async () => {
+    setOptimizing(true);
+    setOptimizeError('');
+    try {
+      const version = await optimizerService.optimize(analysisId);
+      navigate(ROUTES.versionDetail(version.id));
+    } catch (err) {
+      setOptimizeError(getErrorMessage(err, 'Could not create the optimized resume. Please try again.'));
+      setOptimizing(false);
+    }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -98,6 +115,11 @@ export default function AnalysisReportPage() {
               </Typography>
             </Box>
             <Stack direction="row" spacing={1} alignItems="flex-start">
+              {report.engineVersion && (
+                <Button variant="contained" startIcon={<AutoFixHighOutlinedIcon />} onClick={handleOptimize} disabled={optimizing}>
+                  {optimizing ? 'Preparing\u2026' : 'Optimize resume'}
+                </Button>
+              )}
               <Button component={RouterLink} to={rerunLink} variant="outlined" startIcon={<AddIcon />}>
                 Analyze again
               </Button>
@@ -108,6 +130,7 @@ export default function AnalysisReportPage() {
           </Stack>
 
           <ScoreHero report={report} />
+          {optimizeError && <Alert severity="error" onClose={() => setOptimizeError('')}>{optimizeError}</Alert>}
           <ReportWarnings warnings={report.warnings} />
           {report.mandatoryGaps?.length ? (
             <MandatoryGaps gaps={report.mandatoryGaps} />

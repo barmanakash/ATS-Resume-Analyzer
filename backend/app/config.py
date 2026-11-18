@@ -4,6 +4,10 @@ from typing import List, Optional
 from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Convenience default so local development works without a .env. It is public (it is in the source code), so it
+# must never be used where real users exist: see _validate_secret_for_environment below.
+_DEV_JWT_SECRET = "development-secret-key-at-least-32-characters!"
+
 
 class Settings(BaseSettings):
     """All configuration comes from environment variables (or a local .env file)."""
@@ -20,7 +24,7 @@ class Settings(BaseSettings):
     mongodb_db_name: str = "ats_resume_analyzer"
 
     # Auth
-    jwt_secret_key: str = "development-secret-key-at-least-32-characters!"
+    jwt_secret_key: str = _DEV_JWT_SECRET
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 7
@@ -121,6 +125,17 @@ class Settings(BaseSettings):
         if isinstance(value, str) and not value.strip():
             return None
         return value
+
+    @model_validator(mode="after")
+    def _validate_secret_for_environment(self):
+        # Anyone can read the default secret in the source code, so tokens signed with it could be forged.
+        if self.app_env in {"production", "staging"} and self.jwt_secret_key == _DEV_JWT_SECRET:
+            raise ValueError(
+                "JWT_SECRET_KEY is still the built-in development value. Set your own random secret before running "
+                f"with APP_ENV={self.app_env}. Generate one with: "
+                'python -c "import secrets; print(secrets.token_urlsafe(64))"'
+            )
+        return self
 
     @model_validator(mode="after")
     def _validate_cookie_rules(self):
